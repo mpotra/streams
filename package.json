@@ -1,0 +1,47 @@
+{
+  "name": "streams",
+  "version": "0.1.0",
+  "description": "Streams API for Node.JS",
+  "main": "index.js",
+  "scripts": {
+    "clean:src": "rm -rf lib/*",
+    "clean:test": "rm -rf build/test/*",
+    "clean": "npm run clean:src && npm run clean:test",
+    "jslint:src": "eslint src",
+    "jslint:test": "eslint test",
+    "jslint": "npm run jslint:src && npm run jslint:test",
+    "build": "npm run clean-src && babel -d lib src/",
+    "build:test": "npm run clean:test && babel -d build/test test/",
+    "build:all": "npm run build && npm run build:test",
+    "test": "mocha --require test/support/env --reporter spec --recursive build/test/*",
+    "prepublish": "npm run build:all && npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mpotra/streams.git"
+  },
+  "keywords": [
+    "streams",
+    "api",
+    "http",
+    "node",
+    "node.js"
+  ],
+  "author": "Mihai Potra <mike@mpotra.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mpotra/streams/issues"
+  },
+  "homepage": "https://github.com/mpotra/streams#readme",
+  "devDependencies": {
+    "babel-preset-node5": "^11.0.1",
+    "eslint": "^2.7.0",
+    "mocha": "^2.4.5",
+    "should": "^8.3.0"
+  },
+  "babel": {
+    "presets": [
+      "node5"
+    ]
+  }
+}
