@@ -1,7 +1,7 @@
 
 
 export function InvokeOrNoop(O, P, args = []) {
-  if (typeof O[P] === 'function') {
+  if (typeof O[P] !== 'undefined') {
     return O[P](...args);
   }
 }
@@ -9,7 +9,7 @@ export function InvokeOrNoop(O, P, args = []) {
 export function PromiseInvokeOrNoop(O, P, args = []) {
   const promise = Promise.resolve(undefined);
   
-  if (typeof O[P] === 'function') {
+  if (typeof O[P] !== 'undefined') {
     return promise.then(() => O[P](...args));
   }
   

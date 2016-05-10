@@ -1,7 +1,7 @@
-import * as assert from 'assert';
+import assert from 'assert';
 
 export function DequeueValue(q) {
-  assert(q.length > 0);
+  assert(q.length > 0, 'queue must not be empty');
   // const pair = q.shift();
   // return pair.value;
   return q.shift().value;
@@ -17,12 +17,12 @@ export function EnqueueValueWithSize(q, value, sz) {
 
 export function GetTotalQueueSize(q) {
   return q.reduce((previous, current) => {
-    assert(Number.isFinite(current.size));
+    assert(Number.isFinite(current.size), 'size must be a finite number');
     return previous + current.size;
   }, 0);
 }
 
 export function PeekQueueValue(q) {
-  assert(q.length > 0);
+  assert(q.length > 0, 'queue must not be empty');
   return q[0].value;
 }
