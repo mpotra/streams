@@ -1,7 +1,7 @@
 {
-  "name": "smtp",
+  "name": "streams",
   "version": "0.1.0",
-  "description": "A Node.JS SMTP Service",
+  "description": "Streams API for Node.JS",
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf lib/*",
@@ -13,22 +13,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mpotra/smtp.git"
+    "url": "git+https://github.com/mpotra/streams.git"
   },
   "keywords": [
-    "smtp",
-    "esmtp",
-    "server",
-    "service",
+    "streams",
+    "api",
+    "http",
     "node",
     "node.js"
   ],
   "author": "Mihai Potra <mike@mpotra.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mpotra/smtp/issues"
+    "url": "https://github.com/mpotra/streams/issues"
   },
-  "homepage": "https://github.com/mpotra/smtp#readme",
+  "homepage": "https://github.com/mpotra/streams#readme",
   "engines": {
     "node": ">=6.0.0"
   },
