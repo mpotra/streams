@@ -1,11 +1,4 @@
 const assert = require('assert');
-import debug from 'debug';
-
-const debug1 = debug('FIX_L1');
-const debug2 = debug('FIX_L2');
-const debug3 = debug('FIX_L3');
-const debug4 = debug('FIX_L4');
-const debug5 = debug('FIX_L5');
 
 export default function (ctx) {
 
@@ -14,8 +7,6 @@ export default function (ctx) {
   const typeIsObject = ctx.isObject;
   
   const rethrowAssertionErrorRejection = (e) => {
-    debug4.log('RETHROWASSERTIONERRORREJ: %o', e);
-    debug4.log('NAME: %s %s', e.name, e.constructor.name);
     return ctx.ensureAssertionThrows.apply(null, arguments);
   };
   
@@ -65,17 +56,13 @@ export default function (ctx) {
 
       function doPipe() {
         lastRead = reader.read();
-        debug5('LASTREAD = reader.read()');
-        lastRead.catch((e) =>  debug5('LAST READ CATCH:',e));
-        
+
         Promise.all([lastRead, dest.ready]).then(([{ value, done }]) => {
           if (Boolean(done) === true) {
             closeDest();
-            debug5('after closeDest()');
           } else if (dest.state === 'writable') {
             lastWrite = dest.write(value);
             doPipe();
-            debug5('after doPipe()');
           }
         })
         .catch(rethrowAssertionErrorRejection);
@@ -85,27 +72,16 @@ export default function (ctx) {
       }
 
       function cancelSource(reason) {
-        debug5('pipeTo: cancelSource: (preventCancel = %s)', preventCancel, reason);
         if (preventCancel === false) {
-          debug5('calling reader.cancel()');
           reader.cancel(reason);
-          debug5('after reader.cancel');
-          debug5('calling reader.releaseLock');
           reader.releaseLock();
-          debug5('after releaseLock');
-          debug5('calling rejectPipeToPromise()');
           rejectPipeToPromise(reason);
-          debug5('after rejectipetopromise');
         } else {
           // If we don't cancel, we need to wait for lastRead to finish before we're allowed to release.
           // We don't need to handle lastRead failing because that will trigger abortDest which takes care of
           // both of these.
           lastRead.then(() => {
-            debug5('lastRead.then()');
-            debug5('calling reader.releaseLock()');
             reader.releaseLock();
-            debug5('after releaseLock#2');
-            debug5('calling rejectPipeToPromise()');
             rejectPipeToPromise(reason);
           });
         }
@@ -113,7 +89,6 @@ export default function (ctx) {
 
       function closeDest() {
         // Does not need to wait for lastRead since it occurs only on source closed.
-        debug5('closeDest()');
         
         reader.releaseLock();
 
@@ -130,8 +105,7 @@ export default function (ctx) {
 
       function abortDest(reason) {
         // Does not need to wait for lastRead since it only occurs on source errored.
-        debug5('abortDest()');
-        
+
         reader.releaseLock();
 
         if (preventAbort === false) {
