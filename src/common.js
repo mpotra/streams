@@ -1,4 +1,4 @@
-
+import assert from 'assert';
 
 export function InvokeOrNoop(O, P, args = []) {
   if (typeof O[P] !== 'undefined') {
