@@ -6,7 +6,7 @@ export function InvokeOrNoop(O, P, args = []) {
   }
 }
 
-export function PromiseInvokeOrNoop(O, P, args) {
+export function PromiseInvokeOrNoop(O, P, args = []) {
   let method;
   try {
     method = O[P];
@@ -20,6 +20,25 @@ export function PromiseInvokeOrNoop(O, P, args) {
 
   try {
     return Promise.resolve(method.apply(O, args));
+  } catch (e) {
+    return Promise.reject(e);
+  }
+}
+
+export function PromiseInvokeOrFallbackOrNoop(O, P1, args1, P2, args2) {
+  let method;
+  try {
+    method = O[P1];
+  } catch (methodE) {
+    return Promise.reject(methodE);
+  }
+
+  if (method === undefined) {
+    return PromiseInvokeOrNoop(O, P2, args2);
+  }
+
+  try {
+    return Promise.resolve(method.apply(O, args1));
   } catch (e) {
     return Promise.reject(e);
   }
@@ -57,4 +76,14 @@ export function ValidateAndNormalizeQS(size, hwm) {
   }
   const highWaterMark = ValidateAndNormalizeHWM(hwm);
   return {size, highWaterMark};
+}
+
+//SameRealmTransfer takes as its argument a transferable object and returns
+// a new object, created in the same realm, with the same underlying data.
+// The original object becomes detached.
+// 1. Let transferResult be !
+//    StructuredCloneWithTransfer(undefined, « O », the current Realm Record).
+// 2. Return the first (and only) element of transferResult.[[TransferList]].
+export function SameRealmTransfer(o) {
+  return o;
 }
