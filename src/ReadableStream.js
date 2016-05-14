@@ -9,7 +9,8 @@ import {isObject, hasInternalSlot,
 
 import {InvokeOrNoop, PromiseInvokeOrNoop,
         ValidateAndNormalizeQS, ValidateAndNormalizeHWM,
-        IsFiniteNonNegativeNumber, SameRealmTransfer}
+        IsFiniteNonNegativeNumber, SameRealmTransfer,
+        CreateArrayFromList, StructuredClone}
         from './common';
         
 import {DequeueValue, GetTotalQueueSize,
@@ -168,11 +169,9 @@ always force `highWaterMark=1` on `ReadableByteStreamController` contructor.
   
   tee() {
     debug1('ReadableStream::tee()');
-    return rsFixtures.tee.apply(this, arguments);
-    /*
     __ThrowIfNotReadableStream(this);
-    return ReadableStreamTee(this, false);
-    */
+    const branches = ReadableStreamTee(this, false);
+    return CreateArrayFromList(branches);
   }
 
 }
@@ -210,9 +209,137 @@ function IsReadableStreamLocked(stream) {
 
 
 function ReadableStreamTee(stream, shouldClone) {
-  throw new TypeError('Not yet implemented');
+  assert(IsReadableStream(stream) === true,
+    'stream should be a readable stream');
+  assert(typeof shouldClone === 'boolean', 'shouldClone must be a boolean');
+  
+  const reader = AcquireReadableStreamDefaultReader(stream);
+  const teeState = {
+    closedOrError: false,
+    canceled1: false,
+    canceled2: false,
+    reason1: undefined,
+    reason2: undefined,
+    promiseHandle: CreatePromiseHandle(),
+    get promise() {
+      return this.promiseHandle.promise;
+    }
+  };
+  
+  const pull = CreateRSTeePullFunction();
+  
+  pull.reader = reader;
+  pull.teeState = teeState;
+  pull.shouldClone = shouldClone;
+  
+  const cancel1 = CreateRSTeeBranch1CancelFunction();
+  cancel1.stream = stream;
+  cancel1.teeState = teeState;
+  
+  const cancel2 = CreateRSTeeBranch2CancelFunction();
+  cancel2.stream = stream;
+  cancel2.teeState = teeState;
+  
+  const underlyingSource1 = {pull, cancel: cancel1};
+  const branch1Stream = new ReadableStream(underlyingSource1);
+  const underlyingSource2 = {pull, cancel: cancel2};
+  const branch2Stream = new ReadableStream(underlyingSource2);
+  
+  pull.branch1 = branch1Stream[__readableStreamController];
+  pull.branch2 = branch2Stream[__readableStreamController];
+  
+  reader[__closedPromise].catch((r) => {
+    if (teeState.closedOrErrored === true) {
+      return undefined;
+    }
+    
+    DefaultControllerError(pull.branch1, r);
+    DefaultControllerError(pull.branch2, r);
+    
+    teeState.closedOrErrored = true;
+  });
+  
+  return [branch1Stream, branch2Stream];
 }
 
+function CreateRSTeePullFunction() {
+  const f = () => {
+    const {reader, branch1, branch2, teeState, shouldClone } = f;
+    
+    return ReadableStreamDefaultReaderRead(reader).then((result) => {
+      assert(isObject(result), 'result must be an object');
+      const value = result.value;
+      const done = result.done;
+      assert(typeof done === 'boolean', 'done must be a boolean');
+      
+      if (done === true && teeState.closedOrErrored === false) {
+        if (teeState.canceled1 === false) {
+          DefaultControllerClose(branch1);
+        }
+        
+        if (teeState.canceled2 === false) {
+          DefaultControllerClose(branch2);
+        }
+        
+        teeState.closedOrErrored = true;
+      }
+      
+      if (teeState.closedOrErrored === true) {
+        return undefined;
+      }
+      
+      if (teeState.canceled1 === false) {
+        const value1 = (shouldClone === true ? StructuredClone(value) : value);
+        DefaultControllerEnqueue(branch1, value1);
+      }
+      
+      if (teeState.canceled2 === false) {
+        const value2 = (shouldClone === true ? StructuredClone(value) : value);
+        DefaultControllerEnqueue(branch2, value2);
+      }
+    });
+  };
+  
+  return f;
+}
+
+function CreateRSTeeBranch1CancelFunction() {
+  const f = (reason) => {
+    const {stream, teeState} = f;
+    
+    teeState.canceled1 = true;
+    teeState.reason1 = reason;
+    
+    if (teeState.canceled2 === true) {
+      const compositeReason = [teeState.reason1, teeState.reason2];
+      const cancelResult = ReadableStreamCancel(stream, compositeReason);
+      teeState.promiseHandle.resolve(cancelResult);
+    }
+    
+    return teeState.promise;
+  };
+  
+  return f;
+}
+
+function CreateRSTeeBranch2CancelFunction() {
+  const f = (reason) => {
+    const {stream, teeState} = f;
+    
+    teeState.canceled2 = true;
+    teeState.reason2 = reason;
+    
+    if (teeState.canceled1 === true) {
+      const compositeReason = [teeState.reason1, teeState.reason2];
+      const cancelResult = ReadableStreamCancel(stream, compositeReason);
+      teeState.promiseHandle.resolve(cancelResult);
+    }
+    
+    return teeState.promise;
+  };
+  
+  return f;
+}
 
 function ReadableStreamCancel(stream, reason) {
   debug1('ReadableStreamCancel()');
