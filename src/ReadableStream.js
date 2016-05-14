@@ -23,8 +23,6 @@ const debug3 = debug('L3');
 const debug4 = debug('L4');
 const debug5 = debug('L5');
 
-import createRSFixtures from './fixtures/readable-stream';
-
 /*******************************************************************************
  *
  * ReadableStream
@@ -163,8 +161,93 @@ always force `highWaterMark=1` on `ReadableByteStreamController` contructor.
   
   pipeTo(dest, {preventClose, preventAbort, preventCancel} = {}) {
     debug1('ReadableStream::pipeTo()');
-    //throw new TypeError('Not yet implemented');
-    return rsFixtures.pipeTo.apply(this, arguments);
+    
+    __ThrowIfNotReadableStream(this);
+    
+    preventClose = Boolean(preventClose);
+    preventAbort = Boolean(preventAbort);
+    preventCancel = Boolean(preventCancel);
+    
+    const source = this;
+    const promiseHandle = {};
+    
+    let reader;
+    let closeExpected = false;
+    let lastRead, lastWrite;
+    
+    return promiseHandle.promise = new Promise((resolve, reject) => {
+      promiseHandle.resolve = resolve;
+      promiseHandle.reject = reject;
+      
+      reader = source.getReader();
+      reader.closed.catch(abortDest);
+      dest.closed.then(() => {
+        if (closeExpected === false) {
+          cancelSource(new TypeError('Destination cannot be piped anymore'));
+        }
+      }, cancelSource);
+      
+      doPipe();
+    });
+    
+    function doPipe() {
+      lastRead = reader.read();
+
+      Promise.all([lastRead, dest.ready])
+        .then(([readResult]) => {
+          const done = Boolean(readResult.done);
+          const value = readResult.value;
+          
+          if (done === true) {
+            closeDest();
+          } else if (dest.state === 'writable') {
+            lastWrite = dest.write(value);
+            doPipe();
+          }
+        })
+        .catch(ensureAssertionThrows);
+    }
+
+    function cancelSource(reason) {
+      if (preventCancel === false) {
+        reader.cancel(reason);
+        reader.releaseLock();
+        promiseHandle.reject(reason);
+      } else {
+        lastRead.then(() => {
+          reader.releaseLock();
+          promiseHandle.reject(reason);
+        });
+      }
+    }
+
+    function closeDest() {
+      // noneed to wait for lastRead since it occurs only on source closed.
+      
+      reader.releaseLock();
+
+      const destState = dest.state;
+      if (preventClose === false &&
+          (destState === 'waiting' || destState === 'writable')) {
+        closeExpected = true;
+        dest.close().then(promiseHandle.resolve, promiseHandle.reject);
+      } else if (lastWrite !== undefined) {
+        lastWrite.then(promiseHandle.resolve, promiseHandle.reject);
+      } else {
+        promiseHandle.resolve();
+      }
+    }
+
+    function abortDest(reason) {
+      // no need to wait for lastRead since it only occurs on source errored.
+
+      reader.releaseLock();
+
+      if (preventAbort === false) {
+        dest.abort(reason);
+      }
+      promiseHandle.reject(reason);
+    }
   }
   
   tee() {
@@ -1830,17 +1913,3 @@ function IsReadableStreamBYOBRequest(req) {
   return (isObject(req) &&
           hasInternalSlot(req, __associatedReadableByteStreamController));
 }
-
-var rsFixtures = createRSFixtures({
-  'symbols': {
-    __readableStreamController,
-    __closedPromise
-  },
-  isObject, ensureAssertionThrows,
-  IsReadableStream,
-  AcquireReadableStreamDefaultReader,
-  ReadableStreamDefaultReaderRead,
-  ReadableStreamDefaultControllerClose: DefaultControllerClose,
-  ReadableStreamDefaultControllerEnqueue: DefaultControllerEnqueue,
-  ReadableStreamCancel
-});
