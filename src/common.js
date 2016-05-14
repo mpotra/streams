@@ -87,3 +87,16 @@ export function ValidateAndNormalizeQS(size, hwm) {
 export function SameRealmTransfer(o) {
   return o;
 }
+
+export function CreateArrayFromList(list) {
+  return list.slice(0);
+}
+
+export function CreateDataProperty(O, P, V) {
+  assert(typeof O === 'object', 'O must be an object');
+  O[P] = V;
+}
+
+export function StructuredClone(input, targetReal, memory) {
+  return input;
+}
